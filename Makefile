@@ -2,7 +2,9 @@ Q ?= @
 CC = arm-none-eabi-gcc
 CXX = arm-none-eabi-g++
 BUILD_DIR = target
-NWLINK = npx --yes -- nwlink@0.0.16
+APP = io-arcade
+EADK_DIR = /home/codespace/.npm/_npx/3f2d5a369feef8ba/node_modules/nwlink/dist/eadk
+NWLINK = NODE_OPTIONS="--require $(CURDIR)/.nwlink-fix.cjs" npx --yes -- nwlink@0.0.16
 LINK_GC = 1
 LTO = 1
 
@@ -11,25 +13,20 @@ $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(1))))
 endef
 
 src = $(addprefix src/,\
-  alien.cpp \
-  life.cpp \
   main.cpp \
-  rocket.cpp \
-  spaceship.cpp \
-  score.cpp \
+  game.cpp \
 )
 
 CPPFLAGS = -std=c++11 -fno-exceptions
-CPPFLAGS += -Os -Wall
-CPPFLAGS += $(shell $(NWLINK) eadk-cflags)
-LDFLAGS = -Wl,--relocatable
-LDFLAGS += -nostartfiles
-LDFLAGS += --specs=nano.specs
+CPPFLAGS += -Os -Wall -I"$(EADK_DIR)"
 
 ifeq ($(LINK_GC),1)
 CPPFLAGS += -fdata-sections -ffunction-sections
+LDFLAGS = -Wl,--relocatable -nostartfiles --specs=nano.specs
 LDFLAGS += -Wl,-e,main -Wl,-u,eadk_app_name -Wl,-u,eadk_app_icon -Wl,-u,eadk_api_level
 LDFLAGS += -Wl,--gc-sections
+else
+LDFLAGS = -Wl,--relocatable -nostartfiles --specs=nano.specs
 endif
 
 ifeq ($(LTO),1)
@@ -40,10 +37,10 @@ LDFLAGS += -flinker-output=nolto-rel
 endif
 
 .PHONY: build
-build: $(BUILD_DIR)/voord.bin
+build: $(BUILD_DIR)/$(APP).bin
 
 .PHONY: run
-run: $(BUILD_DIR)/voord.nwa
+run: $(BUILD_DIR)/$(APP).nwa
 	@echo "INSTALL $<"
 	$(Q) $(NWLINK) install-nwa $<
 
@@ -51,7 +48,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.nwa
 	@echo "BIN     $@"
 	$(Q) $(NWLINK) nwa-bin $< $@
 
-$(BUILD_DIR)/voord.nwa: $(call object_for,$(src)) $(BUILD_DIR)/icon.o
+$(BUILD_DIR)/$(APP).nwa: $(call object_for,$(src)) $(BUILD_DIR)/icon.o
 	@echo "LD      $@"
 	$(Q) $(CC) $(CPPFLAGS) $(LDFLAGS) $^ -o $@
 
